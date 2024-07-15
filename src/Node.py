@@ -1,6 +1,7 @@
 
 import socket
 import requests
+from time import sleep
 from threading import Thread, Lock
 from NetworkConfig import host_list
 
@@ -12,6 +13,7 @@ class Node:
         self.id_leader = None
         self.lock = Lock()
         Thread(target=self.start_server).start()
+        Thread(target=self.check_nodes).start()
 
     # Método para iniciar o servidor
     def start_server(self):
@@ -22,7 +24,6 @@ class Node:
             server.bind((host_list[self.id_node]["host"], new_port))
             server.listen(5)
             print(f"Servidor iniciado no ip {host_list[self.id_node]['host']} e porta {host_list[self.id_node]['port']}!")
-
             while True:
                 server.accept()
 
@@ -40,23 +41,35 @@ class Node:
 
         # Mensagem para o líder: outro nó
         else:
-            requests.post(f"http://{host_list[max_id]['host']}:{host_list[max_id]['port']}/elect_leader")
+            try:
+                requests.post(f"http://{host_list[max_id]['host']}:{host_list[max_id]['port']}/elect_leader",
+                              timeout=5)
+            except requests.exceptions.RequestException:
+                pass
 
     # Método para atribuir os dados do líder
     def set_leader(self):
-        self.is_leader = True
-        self.id_leader = self.id_node
+        if not self.is_leader:
+            self.is_leader = True
+            self.id_leader = self.id_node
+            print(f"O nó {self.id_node} é o líder!")
 
-        # Depois da atualização, envia confirmação para os outros nós
-        for id in host_list:
-            if id != self.id_node and host_list[id]["active"]:
-                requests.post(f"http://{host_list[id]['host']}:{host_list[id]['port']}/{self.id_node}/confirm_leader",
-                              timeout=5)
+            # Depois da atualização, envia confirmação para os outros nós
+            for id in host_list:
+                if id != self.id_node and host_list[id]["active"]:
+                    try:
+                        requests.post(f"http://{host_list[id]['host']}:{host_list[id]['port']}/{self.id_node}"
+                                      f"/confirm_leader", timeout=5)
+                    except requests.exceptions.RequestException:
+                        pass
 
     # Método para confirmar o líder
     def confirm_leader(self, id):
         self.id_leader = id
         self.is_leader = False
+        print(f"O nó {self.id_node} confirmou o líder {id}!")
+        Thread(target=self.check_leader, args=(id,)).start()
+
         return "Líder confirmado com sucesso! ID do node: " + str(self.id_node)
 
     # Método para encontrar o nó ativo com maior id
@@ -83,13 +96,45 @@ class Node:
                     if not host_list[id]["active"]:
                         host_list[id]["active"] = True
 
-                    # Verifica se o nó é o líder
-                    check_leader = requests.get(f"http://{host_list[id]['host']}:{host_list[id]['port']}/get_leader")
+                    try:
+                        # Verifica se o nó é o líder
+                        check_leader = requests.get(f"http://{host_list[id]['host']}:{host_list[id]['port']}"
+                                                    f"/get_leader", timeout=5)
+                    except requests.exceptions.RequestException:
+                        continue
+
                     # Caso seja o lider
                     if check_leader.json()["is_leader"]:
                         self.id_leader = id
+                        print(f"Na função check_nodes, o nó {id} é o líder!")
                         # Inicia verificação continua se o líder está ativo
                         Thread(target=self.check_leader, args=(id,)).start()
+                        return
+
+                except (socket.timeout, socket.error):
+                    # Caso o nó não esteja ativo
+                    print("Nó inativo! ", id)
+                    if host_list[id]["active"]:
+                        host_list[id]["active"] = False
+
+        # Verificar se há outro nó ativo
+        if self.check_active_nodes():
+            # Inicia eleição, já que há outros nós ativos
+            self.start_election()
+
+    def check_online_nodes(self):
+        for id in host_list:
+            if id != self.id_node:
+                try:
+                    timeout = 5
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(timeout)
+                    sock.connect((host_list[id]["host"], (host_list[id]["port"] - 1000)))
+                    sock.close()
+
+                    # Caso o nó esteja inativo
+                    if not host_list[id]["active"]:
+                        host_list[id]["active"] = True
 
                 except (socket.timeout, socket.error):
                     # Caso o nó não esteja ativo
@@ -120,7 +165,10 @@ class Node:
 
             except (socket.timeout, socket.error):
                 # Caso o líder caia
-                continue
+                print("Líder caiu! ", id)
+                Thread(target=self.check_online_nodes).start()
+                break
+            sleep(5)
 
     # Método para retornar informações do nó
     def get_info(self):
