@@ -29,3 +29,15 @@ def elect_leader():
 @app.route("/<string:id>/confirm_leader", methods=["POST"])
 def confirm_leader(id):
     return jsonify({"message": Node.confirm_leader(id)})
+
+
+# Rota para obter o horário atual dos relógios
+@app.route("/get_time", methods=["GET"])
+def get_time():
+    return jsonify({"message": Node.control_clock.get_time()})
+
+
+# Rota para receber a média dos relógios
+@app.route("/<int:time_sync>/<int:final_time>/receive_times", methods=["POST"])
+def receive_times(time_sync, final_time):
+    return jsonify({"message": Node.receive_times(time_sync, final_time)})
