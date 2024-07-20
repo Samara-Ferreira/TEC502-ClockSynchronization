@@ -62,7 +62,7 @@ class Node:
                     except requests.exceptions.RequestException:
                         pass
 
-        Thread(target=self.syncronize_clock).start()
+            Thread(target=self.syncronize_clock).start()
 
     def confirm_leader(self, id):
         """Método para confirmar o líder."""
@@ -177,7 +177,14 @@ class Node:
 
     def syncronize_clock(self):
         """Verificação periódica, caso seja o líder."""
+
+        sleep(20)
         while self.is_leader:
+
+            print("hora atual lider ", self.control_clock.clock.get_time())
+            self.control_clock.is_sync = True
+            host_list[self.id_node]["time"] = self.control_clock.clock.get_time()
+
             threads_list = []
             for id in host_list:
                 if id != self.id_node:
@@ -191,12 +198,10 @@ class Node:
 
             if not self.check_time_node():
                 self.is_leader = False
+                self.control_clock.is_sync = False
                 print("O líder caiu!")
 
             else:
-                print("\ncaiu aqui \n")
-                print("hora atual lider ", self.control_clock.clock.get_time())
-                self.control_clock.is_sync = True
                 time_sync, final_time = self.calculate_time_sync()
 
                 threads_list = []
@@ -216,25 +221,27 @@ class Node:
 
     def calculate_average(self):
         """Método para calcular a média dos relógios."""
-        host_list[self.id_node]["time"] = self.control_clock.clock.get_time()
         sum_time = 0
         num_nodes = 0
         for id in host_list:
             if host_list[id]["time"] != -1:
                 sum_time += host_list[id]["time"]
                 num_nodes += 1
-        return sum_time / num_nodes
+        return int(sum_time / num_nodes)
 
     def calculate_time_sync(self):
         """Método para calcular o tempo de sincronização."""
         bigger = max([host_list[id]["time"] for id in host_list])
-        print("\nmaior \n", bigger)
+        # print("\nmaior \n", bigger)
         average = self.calculate_average()
-        print("\nmedia \n", average)
+        # print("\nmedia \n", average)
+        if floor((abs(bigger - average) / 2)) == 0:
+            div_time = 1
+        else:
+            div_time = floor(abs(bigger - average) / 2)
 
-        time_sync = floor(abs(bigger - average) + (abs(bigger - average) / 2))
+        time_sync = abs(bigger - average) + div_time
         final_time = int(average) + time_sync
-
         return time_sync, final_time
 
     def check_time_node(self):
@@ -262,6 +269,8 @@ class Node:
             new_drift = round(time_sync / (final_time - self.control_clock.clock.get_time()), 2)
             self.control_clock.clock.set_sync_drift(new_drift)
             Thread(target=self.control_clock.sync_clock, args=(final_time,)).start()
+        else:
+            self.control_clock.is_sync = False
 
     def send_times(self, id, time_sync, final_time):
         try:
