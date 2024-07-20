@@ -20,17 +20,23 @@ class ControllerClock:
             #         self.clock.tick()
 
             # else:
-            sleep(self.clock.drift)
+            if not self.is_sync:
+                sleep(self.clock.drift)
             if not self.is_sync:
                 self.clock.tick()
                 print("Horário atual:", self.clock.convert_time())
 
     def sync_clock(self, final_time: int) -> None:
+        """Método para sincronizar o relógio."""
+        print("Sincronizando relógio...")
+        print("Tempo Final: ", final_time, "Drift de sincronização: ",self.clock.sync_drift)
+        print("\n")
         while self.clock.time < final_time:
-            print("Sincronizando relógio... ", self.clock.time)
-            print("Sync drift ", self.clock.sync_drift)
+            print("horario Atual Sincronizando: ", self.clock.time)
             sleep(self.clock.sync_drift)
             self.clock.tick()
+        print('Relógio sincronizado!!!')
+        print("horario Atual: ", self.clock.time)
         self.is_sync = False
 
     def get_time(self) -> int:
