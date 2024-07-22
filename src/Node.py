@@ -266,7 +266,7 @@ class Node:
         print("Tempo atual:", self.control_clock.clock.get_time())
 
         if (final_time - self.control_clock.clock.get_time()) != 0:
-            new_drift = round(time_sync / (final_time - self.control_clock.clock.get_time()), 2)
+            new_drift = time_sync / abs(final_time - self.control_clock.clock.get_time())
             self.control_clock.clock.set_sync_drift(new_drift)
             Thread(target=self.control_clock.sync_clock, args=(final_time,)).start()
         else:
