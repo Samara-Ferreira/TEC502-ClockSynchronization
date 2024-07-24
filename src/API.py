@@ -41,3 +41,15 @@ def get_time():
 @app.route("/<int:time_sync>/<int:final_time>/receive_times", methods=["POST"])
 def receive_times(time_sync, final_time):
     return jsonify({"message": Node.receive_times(time_sync, final_time)})
+
+
+# Rota para mudar o tempo do relógio
+@app.route("/<int:time>/change_time", methods=["POST"])
+def change_time(time):
+    return jsonify({"message": Node.control_clock.clock.set_time(time)})
+
+
+# Rota para mudar o drift do relógio
+@app.route("/<float:drift>/change_drift", methods=["POST"])
+def change_drift(drift):
+    return jsonify({"message": Node.control_clock.clock.set_drift(drift)})
