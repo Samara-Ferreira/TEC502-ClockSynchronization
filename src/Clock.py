@@ -1,18 +1,17 @@
+"""Módulo para a classe Clock."""
 
 
 class Clock:
-    def __init__(self):
+    def __init__(self) -> None:
+        """Construtor da classe Clock."""
+
         self.time: int = 0
-        self.drift: float = 1
+        self.drift: float = 1.1
         self.sync_drift: int = 0
 
-    # Método para incrementar o tempo
     def tick(self) -> None:
-        # Quando chegar no tempo limite de 24 horas, reinicia o relógio
-        if self.time == 86400:
-            self.time = 0
-        else:
-            self.time += 1
+        """Método para incrementar o tempo."""
+        self.time += 1
 
     # Método para mudar o tempo
     def set_time(self, new_time: int) -> None:
@@ -31,8 +30,12 @@ class Clock:
         return self.time
 
     # Método para converter o tempo de segundos para horas, minutos e segundos
-    def convert_time(self) -> str:
-        hours = self.time // 3600
-        minutes = (self.time % 3600) // 60
-        seconds = self.time % 60
-        return f"{hours}:{minutes}:{seconds}"
+    def convert_time(self):
+        seconds = self.time
+        days = seconds // 86_400
+        seconds %= 86_400
+        hours = seconds // 3_600
+        seconds %= 3_600
+        minutes = seconds // 60
+        seconds %= 60
+        return days, f"{hours:02}:{minutes:02}:{seconds:02}"
