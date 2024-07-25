@@ -1,3 +1,5 @@
+"""Este arquivo é responsável por adicionar o diretório pai ao sys.path, para que os módulos do projeto possam ser
+importados de qualquer lugar do projeto."""
 
 import os
 import sys
